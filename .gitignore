@@ -40,5 +40,8 @@ uploads/
 *.webp
 !uploads/.gitkeep
 
+# CodeBuddy
+.codebuddy/
+
 # Test
 coverage/
