@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { photos } from '../api'
 import { getFingerprint } from '../stores'
 import { favorites } from '../api'
+import { error } from '../composables/useToast'
+import Lightbox from '../components/Lightbox.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -11,6 +13,9 @@ const photo = ref(null)
 const loading = ref(true)
 const isFavorited = ref(false)
 const fp = getFingerprint()
+
+// Lightbox 状态
+const lightboxVisible = ref(false)
 
 const loadPhoto = async () => {
   loading.value = true
@@ -21,7 +26,7 @@ const loadPhoto = async () => {
     const favRes = await favorites.check(photo.value.id, fp)
     isFavorited.value = favRes.isFavorited
   } catch (e) {
-    alert('照片不存在')
+    error('照片不存在')
     router.push('/')
   } finally {
     loading.value = false
@@ -38,7 +43,7 @@ const toggleFavorite = async () => {
       isFavorited.value = true
     }
   } catch (e) {
-    alert(e.response?.data?.error || '操作失败')
+    error(e.response?.data?.error || '操作失败')
   }
 }
 
@@ -53,7 +58,7 @@ onMounted(loadPhoto)
       <button class="back-btn" @click="goBack">← 返回</button>
       <div v-if="loading" class="loading">加载中...</div>
       <div v-else-if="photo" class="photo-detail">
-        <div class="photo-wrapper">
+        <div class="photo-wrapper" @click="lightboxVisible = true">
           <img :src="photo.url" :alt="photo.title" />
         </div>
         <div class="photo-info">
@@ -68,6 +73,15 @@ onMounted(loadPhoto)
           </button>
         </div>
       </div>
+
+      <!-- Lightbox -->
+      <Lightbox
+        v-if="photo"
+        :photos="[photo]"
+        :start-index="0"
+        :visible="lightboxVisible"
+        @close="lightboxVisible = false"
+      />
     </div>
   </div>
 </template>
@@ -96,6 +110,7 @@ onMounted(loadPhoto)
   background: #000;
   border-radius: 8px;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .photo-wrapper img {

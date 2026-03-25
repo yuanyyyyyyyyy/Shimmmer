@@ -39,6 +39,9 @@ export const photos = {
   get: (id) => api.get(`/photos/${id}`),
   getRandomDiary: () => api.get('/photos/random/diary'),
   getTimelineStats: () => api.get('/photos/stats/timeline'),
+  getMapMarkers: () => api.get('/photos/map/markers'),
+  getReview: (year) => api.get(`/review/${year}`),
+  getReviewYears: () => api.get('/review/years'),
   create: (data) => api.post('/photos', data),
   update: (id, data) => api.put(`/photos/${id}`, data),
   delete: (id) => api.delete(`/photos/${id}`)
@@ -71,6 +74,16 @@ export const upload = {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   }
+}
+
+// 标签
+export const tags = {
+  list: () => api.get('/tags'),
+  getPopular: (limit) => api.get('/tags/popular', { params: { limit } }),
+  create: (data) => api.post('/tags', data),
+  delete: (id) => api.delete(`/tags/${id}`),
+  getPhotoTags: (photoId) => api.get(`/tags/photo/${photoId}`),
+  setPhotoTags: (photoId, tagIds) => api.post(`/tags/photo/${photoId}`, { tagIds })
 }
 
 export default api

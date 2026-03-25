@@ -1,13 +1,32 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { favorites } from '../api'
 import { getFingerprint } from '../stores'
+import { error } from '../composables/useToast'
+import Lightbox from '../components/Lightbox.vue'
 
 const router = useRouter()
 const list = ref([])
 const loading = ref(true)
 const fp = getFingerprint()
+
+// Lightbox 状态
+const lightboxVisible = ref(false)
+const lightboxIndex = ref(0)
+
+// 转换为 Lightbox 需要的照片格式
+const photoList = computed(() => 
+  list.value.map(item => ({
+    id: item.photo_id,
+    url: item.url,
+    thumbnail_url: item.thumbnail_url,
+    title: item.title,
+    mood: item.mood,
+    shot_date: item.shot_date,
+    location: item.location
+  }))
+)
 
 const loadFavorites = async () => {
   loading.value = true
@@ -28,11 +47,26 @@ const removeFavorite = async (photoId, e) => {
     await favorites.remove(photoId, fp)
     list.value = list.value.filter(f => f.photo_id !== photoId)
   } catch (e) {
-    alert(e.response?.data?.error || '操作失败')
+    error(e.response?.data?.error || '操作失败')
   }
 }
 
 const viewDetail = (id) => router.push(`/photo/${id}`)
+
+// 打开 Lightbox
+const openLightbox = (index) => {
+  lightboxIndex.value = index
+  lightboxVisible.value = true
+}
+
+// Lightbox 关闭后跳转详情
+const handleLightboxClose = () => {
+  const item = list.value[lightboxIndex.value]
+  lightboxVisible.value = false
+  if (item) {
+    router.push(`/photo/${item.photo_id}`)
+  }
+}
 
 onMounted(loadFavorites)
 </script>
@@ -48,10 +82,10 @@ onMounted(loadFavorites)
       </div>
       <div v-else class="fav-grid">
         <div 
-          v-for="item in list" 
+          v-for="(item, index) in list" 
           :key="item.id" 
           class="fav-card"
-          @click="viewDetail(item.photo_id)"
+          @click="openLightbox(index)"
         >
           <img :src="item.thumbnail_url || item.url" :alt="item.title" />
           <div class="fav-overlay">
@@ -60,6 +94,14 @@ onMounted(loadFavorites)
           </div>
         </div>
       </div>
+
+      <!-- Lightbox -->
+      <Lightbox
+        :photos="photoList"
+        :start-index="lightboxIndex"
+        :visible="lightboxVisible"
+        @close="handleLightboxClose"
+      />
     </div>
   </div>
 </template>

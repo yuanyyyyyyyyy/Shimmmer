@@ -2,12 +2,17 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { photos } from '../api'
+import Lightbox from '../components/Lightbox.vue'
 
 const router = useRouter()
 const stats = ref([])
 const loading = ref(true)
 const selectedYear = ref(null)
 const yearPhotos = ref([])
+
+// Lightbox 状态
+const lightboxVisible = ref(false)
+const lightboxIndex = ref(0)
 
 const loadStats = async () => {
   loading.value = true
@@ -36,6 +41,21 @@ const selectYear = async (year) => {
 
 const viewPhoto = (id) => router.push(`/photo/${id}`)
 
+// 打开 Lightbox
+const openLightbox = (index) => {
+  lightboxIndex.value = index
+  lightboxVisible.value = true
+}
+
+// Lightbox 关闭后跳转详情
+const handleLightboxClose = () => {
+  const photo = yearPhotos.value[lightboxIndex.value]
+  lightboxVisible.value = false
+  if (photo) {
+    router.push(`/photo/${photo.id}`)
+  }
+}
+
 onMounted(loadStats)
 </script>
 
@@ -57,10 +77,10 @@ onMounted(loadStats)
         </div>
         <div v-if="yearPhotos.length > 0" class="photo-timeline">
           <div 
-            v-for="photo in yearPhotos" 
+            v-for="(photo, index) in yearPhotos" 
             :key="photo.id" 
             class="timeline-item"
-            @click="viewPhoto(photo.id)"
+            @click="openLightbox(index)"
           >
             <div class="timeline-date">{{ photo.shot_date }}</div>
             <img :src="photo.thumbnail_url || photo.url" :alt="photo.title" />
@@ -73,6 +93,14 @@ onMounted(loadStats)
         </div>
         <div v-else class="empty">暂无照片</div>
       </template>
+
+      <!-- Lightbox -->
+      <Lightbox
+        :photos="yearPhotos"
+        :start-index="lightboxIndex"
+        :visible="lightboxVisible"
+        @close="handleLightboxClose"
+      />
     </div>
   </div>
 </template>

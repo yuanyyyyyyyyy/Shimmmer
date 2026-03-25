@@ -8,53 +8,100 @@ const router = Router();
 // 获取照片列表（公开接口）
 router.get('/', async (req, res, next) => {
   try {
-    const { page = 1, limit = 12, sort = 'random', year, month } = req.query;
+    const { page = 1, limit = 12, sort = 'random', year, month, search, tag } = req.query;
     const safeLimit = Math.max(1, Math.min(100, parseInt(limit) || 12));
     const safeOffset = Math.max(0, (parseInt(page) - 1) * safeLimit);
 
     let orderBy;
     switch (sort) {
       case 'date':
-        orderBy = 'shot_date DESC, created_at DESC';
+        orderBy = 'shot_date DESC, create_time DESC';
         break;
       case 'created':
-        orderBy = 'created_at DESC';
+        orderBy = 'create_time DESC';
         break;
       case 'manual':
-        orderBy = 'sort_order DESC, created_at DESC';
+        orderBy = 'sort_order DESC, create_time DESC';
         break;
       case 'random':
       default:
         orderBy = 'RAND()';
     }
 
-    let whereClause = 'WHERE is_visible = 1';
+    let whereClause = 'WHERE p.is_visible = 1';
     const params = [];
 
+    // 搜索支持（标题、心情、地点的模糊搜索）
+    if (search) {
+      whereClause += ' AND (p.title LIKE ? OR p.mood LIKE ? OR p.location LIKE ?)';
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    // 标签过滤
+    if (tag) {
+      // 支持多个标签，用逗号分隔
+      const tagIds = tag.split(',').map(t => parseInt(t)).filter(t => !isNaN(t));
+      if (tagIds.length > 0) {
+        const placeholders = tagIds.map(() => '?').join(',');
+        whereClause += ` AND p.id IN (
+          SELECT DISTINCT pt.photo_id FROM photo_tags pt 
+          WHERE pt.tag_id IN (${placeholders})
+        )`;
+        params.push(...tagIds);
+      }
+    }
+
     if (year) {
-      whereClause += ' AND YEAR(shot_date) = ?';
+      whereClause += ' AND YEAR(p.shot_date) = ?';
       params.push(year);
     }
     if (month) {
-      whereClause += ' AND MONTH(shot_date) = ?';
+      whereClause += ' AND MONTH(p.shot_date) = ?';
       params.push(month);
     }
 
     // 获取总数
     const [countResult] = await query(
-      `SELECT COUNT(*) as total FROM photos ${whereClause}`,
+      `SELECT COUNT(DISTINCT p.id) as total FROM photos p ${whereClause}`,
       params
     );
     const total = countResult.total;
 
-    // 获取列表
+    // 获取列表（添加 tags 字段）
     const photos = await query(
-      `SELECT id, title, url, thumbnail_url, mood, shot_date, location, width, height
-       FROM photos ${whereClause}
+      `SELECT p.id, p.title, p.url, p.thumbnail_url, p.mood, p.shot_date, p.location, p.width, p.height,
+              p.created_at as create_time, p.latitude, p.longitude
+       FROM photos p ${whereClause}
+       GROUP BY p.id
        ORDER BY ${orderBy}
        LIMIT ${safeLimit} OFFSET ${safeOffset}`,
       params
     );
+
+    // 获取每张照片的标签
+    if (photos.length > 0) {
+      const photoIds = photos.map(p => p.id);
+      const [photoTags] = await query(`
+        SELECT pt.photo_id, t.id, t.name, t.color
+        FROM photo_tags pt
+        JOIN tags t ON pt.tag_id = t.id
+        WHERE pt.photo_id IN (?)
+      `, [photoIds]);
+
+      // 将标签附加到照片对象
+      const tagsMap = {};
+      for (const pt of photoTags) {
+        if (!tagsMap[pt.photo_id]) {
+          tagsMap[pt.photo_id] = [];
+        }
+        tagsMap[pt.photo_id].push({ id: pt.id, name: pt.name, color: pt.color });
+      }
+
+      for (const photo of photos) {
+        photo.tags = tagsMap[photo.id] || [];
+      }
+    }
 
     res.json({
       data: photos,
@@ -125,6 +172,22 @@ router.get('/stats/timeline', async (req, res, next) => {
   }
 });
 
+// 获取地图标记点
+router.get('/map/markers', async (req, res, next) => {
+  try {
+    const markers = await query(
+      `SELECT id, title, thumbnail_url, shot_date, location, latitude, longitude
+       FROM photos 
+       WHERE is_visible = 1 AND latitude IS NOT NULL AND longitude IS NOT NULL
+       ORDER BY shot_date DESC`
+    );
+
+    res.json({ markers });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 以下为需要认证的管理员接口
 
 // 创建照片
@@ -133,7 +196,8 @@ router.post('/', authenticateToken, async (req, res, next) => {
     const {
       title, url, thumbnail_url, original_url,
       mood, shot_date, location, width, height,
-      file_size, sort_order, is_visible = 1
+      file_size, sort_order, is_visible = 1,
+      latitude, longitude
     } = req.body;
 
     if (!url) {
@@ -144,9 +208,9 @@ router.post('/', authenticateToken, async (req, res, next) => {
     const toNull = (v) => (v === undefined || v === '' ? null : v);
 
     const result = await query(
-      `INSERT INTO photos (user_id, title, url, thumbnail_url, original_url, mood, shot_date, location, width, height, file_size, sort_order, is_visible)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.id, title, url, toNull(thumbnail_url), toNull(original_url), toNull(mood), toNull(shot_date), toNull(location), toNull(width), toNull(height), toNull(file_size), sort_order || 0, is_visible]
+      `INSERT INTO photos (user_id, title, url, thumbnail_url, original_url, mood, shot_date, location, width, height, file_size, sort_order, is_visible, latitude, longitude)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.user.id, title, url, toNull(thumbnail_url), toNull(original_url), toNull(mood), toNull(shot_date), toNull(location), toNull(width), toNull(height), toNull(file_size), sort_order || 0, is_visible, toNull(latitude), toNull(longitude)]
     );
 
     const photos = await query('SELECT * FROM photos WHERE id = ?', [result.insertId]);
@@ -163,7 +227,8 @@ router.put('/:id', authenticateToken, async (req, res, next) => {
     const {
       title, url, thumbnail_url, original_url,
       mood, shot_date, location, width, height,
-      file_size, sort_order, is_visible
+      file_size, sort_order, is_visible,
+      latitude, longitude
     } = req.body;
 
     const existing = await query('SELECT id FROM photos WHERE id = ?', [id]);
@@ -187,9 +252,11 @@ router.put('/:id', authenticateToken, async (req, res, next) => {
         height = COALESCE(?, height),
         file_size = COALESCE(?, file_size),
         sort_order = COALESCE(?, sort_order),
-        is_visible = COALESCE(?, is_visible)
+        is_visible = COALESCE(?, is_visible),
+        latitude = COALESCE(?, latitude),
+        longitude = COALESCE(?, longitude)
        WHERE id = ?`,
-      [title, url, toNull(thumbnail_url), toNull(original_url), toNull(mood), toNull(shot_date), toNull(location), toNull(width), toNull(height), toNull(file_size), toNull(sort_order), toNull(is_visible), id]
+      [title, url, toNull(thumbnail_url), toNull(original_url), toNull(mood), toNull(shot_date), toNull(location), toNull(width), toNull(height), toNull(file_size), toNull(sort_order), toNull(is_visible), toNull(latitude), toNull(longitude), id]
     );
 
     const photos = await query('SELECT * FROM photos WHERE id = ?', [id]);

@@ -2,7 +2,10 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores'
-import { photos, upload } from '../api'
+import { photos, upload, tags } from '../api'
+import { success, error, confirm } from '../composables/useToast'
+import DragDropUpload from '../components/DragDropUpload.vue'
+import { extractExif } from '../composables/useExif'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -16,9 +19,15 @@ const total = ref(0)
 // 上传状态
 const uploading = ref(false)
 const uploadProgress = ref(0)
+const uploadedPhotos = ref([])
+
+// 标签列表
+const allTags = ref([])
+const selectedTags = ref([])
 
 // 表单
 const showForm = ref(false)
+const uploadMode = ref('single') // 'single' | 'batch'
 const editingPhoto = ref(null)
 const form = ref({
   title: '',
@@ -41,7 +50,52 @@ onMounted(async () => {
   }
   await authStore.fetchUser()
   loadPhotos()
+  loadTags()
 })
+
+// 加载标签
+const loadTags = async () => {
+  try {
+    const res = await tags.list()
+    allTags.value = res.tags
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+// 创建新标签
+const createTag = async () => {
+  const name = prompt('请输入标签名称:')
+  if (!name) return
+  
+  try {
+    const res = await tags.create({ name })
+    allTags.value.push(res.tag)
+    success('标签创建成功')
+  } catch (e) {
+    error(e.response?.data?.error || '创建失败')
+  }
+}
+
+// 切换标签
+const toggleTag = (tagId) => {
+  const index = selectedTags.value.indexOf(tagId)
+  if (index > -1) {
+    selectedTags.value.splice(index, 1)
+  } else {
+    selectedTags.value.push(tagId)
+  }
+}
+
+// 处理拖拽上传完成
+const handleBatchUploaded = (photoData) => {
+  uploadedPhotos.value.push(photoData)
+}
+
+// 处理拖拽上传中
+const handleBatchUploading = (isUploading) => {
+  uploading.value = isUploading
+}
 
 // 加载照片
 const loadPhotos = async () => {
@@ -66,14 +120,29 @@ const handleFileSelect = async (e) => {
   uploadProgress.value = 0
 
   try {
-    const res = await upload.single(file)
+    // 并行执行：上传文件和读取 EXIF
+    const [res, exifData] = await Promise.all([
+      upload.single(file),
+      extractExif(file)
+    ])
+    
     form.value.url = res.url
     form.value.thumbnail_url = res.thumbnail_url
     form.value.width = res.width
     form.value.height = res.height
     form.value.file_size = res.file_size
+    
+    // 自动填充 EXIF 数据
+    if (exifData.shot_date && !form.value.shot_date) {
+      form.value.shot_date = exifData.shot_date
+    }
+    
+    // 如果有 GPS 数据，可以存储或显示
+    if (exifData.latitude && exifData.longitude) {
+      console.log('GPS 坐标:', exifData.latitude, exifData.longitude)
+    }
   } catch (err) {
-    alert(err.response?.data?.error || '上传失败')
+    error(err.response?.data?.error || '上传失败')
   } finally {
     uploading.value = false
     e.target.value = ''
@@ -83,7 +152,7 @@ const handleFileSelect = async (e) => {
 // 提交表单
 const handleSubmit = async () => {
   if (!form.value.url) {
-    alert('请先上传图片')
+    error('请先上传图片')
     return
   }
 
@@ -94,43 +163,63 @@ const handleSubmit = async () => {
   }
 
   try {
+    let photoId
     if (editingPhoto.value) {
       await photos.update(editingPhoto.value.id, data)
-      alert('更新成功')
+      photoId = editingPhoto.value.id
+      success('更新成功')
     } else {
-      await photos.create(data)
-      alert('创建成功')
+      const res = await photos.create(data)
+      photoId = res.photo.id
+      success('创建成功')
     }
+    
+    // 保存标签
+    if (photoId) {
+      await tags.setPhotoTags(photoId, selectedTags.value)
+    }
+    
     showForm.value = false
     resetForm()
     loadPhotos()
   } catch (err) {
-    alert(err.response?.data?.error || '操作失败')
+    error(err.response?.data?.error || '操作失败')
   }
 }
 
 // 删除
 const handleDelete = async (photo) => {
-  if (!confirm('确定要删除这张照片吗？')) return
+  if (!(await confirm('确定要删除这张照片吗？'))) return
 
   try {
     await photos.delete(photo.id)
     loadPhotos()
   } catch (err) {
-    alert(err.response?.data?.error || '删除失败')
+    error(err.response?.data?.error || '删除失败')
   }
 }
 
 // 编辑
-const handleEdit = (photo) => {
+const handleEdit = async (photo) => {
   editingPhoto.value = photo
   form.value = { ...photo }
+  
+  // 加载照片的标签
+  try {
+    const res = await tags.getPhotoTags(photo.id)
+    selectedTags.value = res.tags.map(t => t.id)
+  } catch (e) {
+    selectedTags.value = []
+  }
+  
   showForm.value = true
 }
 
 // 重置表单
 const resetForm = () => {
   editingPhoto.value = null
+  selectedTags.value = []
+  uploadedPhotos.value = []
   form.value = {
     title: '',
     mood: '',
@@ -142,6 +231,50 @@ const resetForm = () => {
     height: 0,
     file_size: 0,
     is_visible: 1
+  }
+}
+
+// 批量保存
+const handleBatchSave = async () => {
+  if (uploadedPhotos.value.length === 0) {
+    error('请先上传照片')
+    return
+  }
+  
+  uploading.value = true
+  
+  try {
+    // 为每张照片创建记录
+    for (const photo of uploadedPhotos.value) {
+      const data = {
+        title: form.value.title || null,
+        mood: form.value.mood || null,
+        shot_date: form.value.shot_date || null,
+        location: form.value.location || null,
+        url: photo.url,
+        thumbnail_url: photo.thumbnail_url,
+        width: photo.width,
+        height: photo.height,
+        file_size: photo.file_size,
+        is_visible: form.value.is_visible
+      }
+      
+      const res = await photos.create(data)
+      
+      // 保存标签
+      if (selectedTags.value.length > 0) {
+        await tags.setPhotoTags(res.photo.id, selectedTags.value)
+      }
+    }
+    
+    success(`成功创建 ${uploadedPhotos.value.length} 张照片`)
+    showForm.value = false
+    resetForm()
+    loadPhotos()
+  } catch (err) {
+    error(err.response?.data?.error || '操作失败')
+  } finally {
+    uploading.value = false
   }
 }
 
@@ -189,8 +322,33 @@ const handleLogout = () => {
         <div class="modal-content">
           <h3>{{ editingPhoto ? '编辑照片' : '上传照片' }}</h3>
           
+          <!-- 批量上传模式切换 -->
+          <div v-if="!editingPhoto" class="upload-mode-switch">
+            <button 
+              type="button"
+              :class="{ active: uploadMode === 'single' }"
+              @click="uploadMode = 'single'; resetForm()"
+            >
+              单张上传
+            </button>
+            <button 
+              type="button"
+              :class="{ active: uploadMode === 'batch' }"
+              @click="uploadMode = 'batch'; resetForm()"
+            >
+              批量上传
+            </button>
+          </div>
+          
           <!-- 图片上传 -->
-          <div class="upload-area">
+          <div v-if="uploadMode === 'batch'" class="upload-area">
+            <DragDropUpload
+              :max-files="20"
+              @uploaded="handleBatchUploaded"
+              @uploading="handleBatchUploading"
+            />
+          </div>
+          <div v-else class="upload-area">
             <div v-if="form.url" class="preview">
               <img :src="form.url" />
               <button class="remove" @click="form.url = ''">×</button>
@@ -203,7 +361,7 @@ const handleLogout = () => {
           </div>
 
           <!-- 表单 -->
-          <form @submit.prevent="handleSubmit">
+          <form @submit.prevent="uploadMode === 'batch' ? handleBatchSave() : handleSubmit()">
             <div class="form-group">
               <label>标题</label>
               <input v-model="form.title" type="text" placeholder="可选标题" />
@@ -228,10 +386,31 @@ const handleLogout = () => {
                 公开显示
               </label>
             </div>
+            
+            <!-- 标签选择 -->
+            <div class="form-group">
+              <label>标签</label>
+              <div class="tags-selector">
+                <span 
+                  v-for="tag in allTags" 
+                  :key="tag.id"
+                  class="tag-option"
+                  :class="{ selected: selectedTags.includes(tag.id) }"
+                  :style="{ 
+                    backgroundColor: selectedTags.includes(tag.id) ? tag.color : '#f0f0f0',
+                    borderColor: tag.color
+                  }"
+                  @click="toggleTag(tag.id)"
+                >
+                  {{ tag.name }}
+                </span>
+                <button type="button" class="add-tag-btn" @click="createTag">+ 新建标签</button>
+              </div>
+            </div>
             <div class="form-actions">
               <button type="button" @click="showForm = false">取消</button>
               <button type="submit" :disabled="uploading">
-                {{ uploading ? '上传中...' : (editingPhoto ? '保存' : '创建') }}
+                {{ uploading ? '上传中...' : (editingPhoto ? '保存' : (uploadMode === 'batch' && uploadedPhotos.length > 0 ? `保存 ${uploadedPhotos.length} 张` : '创建')) }}
               </button>
             </div>
           </form>
@@ -249,6 +428,29 @@ const handleLogout = () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+}
+
+.upload-mode-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.upload-mode-switch button {
+  flex: 1;
+  padding: 8px 16px;
+  border: 2px solid #ddd;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.upload-mode-switch button.active {
+  border-color: var(--secondary-color);
+  background: var(--secondary-color);
+  color: #fff;
 }
 
 .header-actions {
@@ -411,6 +613,43 @@ const handleLogout = () => {
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 6px;
+}
+
+.tags-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-option {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  color: #333;
+}
+
+.tag-option:hover {
+  opacity: 0.8;
+}
+
+.tag-option.selected {
+  color: #fff;
+}
+
+.add-tag-btn {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  background: #f0f0f0;
+  border: 2px dashed #ccc;
+  cursor: pointer;
+}
+
+.add-tag-btn:hover {
+  border-color: #999;
 }
 
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
