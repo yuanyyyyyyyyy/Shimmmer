@@ -1,14 +1,16 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { photos } from '../api'
 import { getFingerprint } from '../stores'
+import { useAuthStore } from '../stores'
 import { favorites } from '../api'
 import { error } from '../composables/useToast'
 import Lightbox from '../components/Lightbox.vue'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 const photoList = ref([])
 const loading = ref(false)
 const page = ref(1)
@@ -20,11 +22,34 @@ const favoriteIds = ref(new Set())
 const currentSearch = ref('')
 const currentTag = ref(null)
 
+// 视图切换和排序
+const viewMode = ref('public') // 'public' | 'my'
+const sortOption = ref('random')
+const sortOptions = [
+  { value: 'random', label: '随机排列' },
+  { value: 'taken_date_desc', label: '拍摄日期（新→旧）' },
+  { value: 'taken_date_asc', label: '拍摄日期（旧→新）' },
+  { value: 'created_desc', label: '上传日期（新→旧）' },
+  { value: 'created_asc', label: '上传日期（旧→新）' }
+]
+
 // Lightbox 状态
 const lightboxVisible = ref(false)
 const lightboxIndex = ref(0)
 
 const fp = getFingerprint()
+
+// 切换视图模式
+const switchView = (mode) => {
+  if (mode === viewMode.value) return
+  viewMode.value = mode
+  loadPhotos(true)
+}
+
+// 切换排序
+const changeSort = () => {
+  loadPhotos(true)
+}
 
 // 加载照片
 const loadPhotos = async (reset = false) => {
@@ -42,7 +67,7 @@ const loadPhotos = async (reset = false) => {
     const params = { 
       page: reset ? 1 : page.value, 
       limit: 12,
-      sort: 'random'
+      sort: sortOption.value
     }
     
     if (search) {
@@ -50,6 +75,12 @@ const loadPhotos = async (reset = false) => {
     }
     if (tag) {
       params.tag = tag
+    }
+    
+    // 如果是"我的照片"模式且已登录
+    if (viewMode.value === 'my' && authStore.isLoggedIn) {
+      params.user_id = authStore.user.id
+      params.visibility = 'all' // 显示包括私有的所有照片
     }
     
     const res = await photos.list(params)
@@ -132,6 +163,35 @@ watch(() => route.query, () => {
 <template>
   <div class="home">
     <div class="container">
+      <!-- 视图切换和排序 -->
+      <div class="view-controls">
+        <!-- 视图切换标签（仅登录后显示） -->
+        <div v-if="authStore.isLoggedIn" class="view-tabs">
+          <button 
+            :class="{ active: viewMode === 'public' }"
+            @click="switchView('public')"
+          >
+            全部公开
+          </button>
+          <button 
+            :class="{ active: viewMode === 'my' }"
+            @click="switchView('my')"
+          >
+            我的照片
+          </button>
+        </div>
+        
+        <!-- 排序选择 -->
+        <div class="sort-control">
+          <label>排序：</label>
+          <select v-model="sortOption" @change="changeSort">
+            <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+      </div>
+      
       <!-- 当前筛选状态 -->
       <div v-if="currentSearch || currentTag" class="filter-status">
         <span v-if="currentSearch">搜索: "{{ currentSearch }}"</span>
@@ -195,6 +255,68 @@ watch(() => route.query, () => {
 </template>
 
 <style scoped>
+/* 视图控制和排序 */
+.view-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.view-tabs button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  background: var(--card-bg);
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.view-tabs button:hover {
+  background: var(--hover-bg);
+}
+
+.view-tabs button.active {
+  background: var(--secondary-color);
+  color: #fff;
+  border-color: var(--secondary-color);
+}
+
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-control label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.sort-control select {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-color);
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+}
+
+.sort-control select:focus {
+  border-color: var(--secondary-color);
+}
+
 .filter-status {
   display: flex;
   align-items: center;

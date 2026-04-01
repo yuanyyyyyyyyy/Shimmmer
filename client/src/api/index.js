@@ -28,9 +28,19 @@ api.interceptors.response.use(
 // 认证
 export const auth = {
   login: (username, password) => api.post('/auth/login', { username, password }),
+  register: (username, password, nickname) => api.post('/auth/register', { username, password, nickname }),
   getMe: () => api.get('/auth/me'),
-  changePassword: (oldPassword, newPassword) => 
+  changePassword: (oldPassword, newPassword) =>
     api.post('/auth/change-password', { oldPassword, newPassword })
+}
+
+// 用户
+export const users = {
+  getProfile: (id) => api.get(`/users/${id}`),
+  getUserPhotos: (id, params) => api.get(`/users/${id}/photos`, { params }),
+  updateProfile: (data) => api.put('/users/profile', data),
+  list: (params) => api.get('/users', { params }),
+  updateRole: (id, role) => api.put(`/users/${id}/role`, { role })
 }
 
 // 照片
@@ -42,20 +52,22 @@ export const photos = {
   getMapMarkers: () => api.get('/photos/map/markers'),
   getReview: (year) => api.get(`/review/${year}`),
   getReviewYears: () => api.get('/review/years'),
+  getMyPhotos: (params) => api.get('/photos/my/list', { params }),
+  getAdminPhotos: (params) => api.get('/photos/admin/all', { params }),
   create: (data) => api.post('/photos', data),
   update: (id, data) => api.put(`/photos/${id}`, data),
   delete: (id) => api.delete(`/photos/${id}`)
 }
 
-// 收藏
+// 收藏（登录用户自动使用 user_id，未登录使用 fingerprint）
 export const favorites = {
-  list: (fingerprint) => api.get('/favorites', { params: { fingerprint } }),
-  check: (photoId, fingerprint) => 
+  list: () => api.get('/favorites'),
+  check: (photoId, fingerprint) =>
     api.get('/favorites/check', { params: { photo_id: photoId, fingerprint } }),
-  add: (photoId, fingerprint) => 
+  add: (photoId, fingerprint) =>
     api.post('/favorites', { photo_id: photoId, fingerprint }),
-  remove: (photoId, fingerprint) => 
-    api.delete(`/favorites/${photoId}`, { params: { fingerprint } })
+  remove: (photoId) =>
+    api.delete(`/favorites/${photoId}`)
 }
 
 // 上传

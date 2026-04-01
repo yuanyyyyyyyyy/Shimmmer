@@ -1,9 +1,20 @@
 import { Router } from 'express';
 import { query, getConnection } from '../config/database.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import { ValidationError } from '../middleware/error.js';
 
 const router = Router();
+
+// 将 ISO 日期转换为 MYSQL 日期格式
+const formatDate = (v) => {
+  if (!v) return null;
+  if (typeof v === 'string') {
+    const match = v.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+    return v;
+  }
+  return null;
+};
 
 // 获取照片列表（公开接口）
 router.get('/', async (req, res, next) => {
@@ -28,7 +39,7 @@ router.get('/', async (req, res, next) => {
         orderBy = 'RAND()';
     }
 
-    let whereClause = 'WHERE p.is_visible = 1';
+    let whereClause = 'WHERE p.visibility = "public"';
     const params = [];
 
     // 搜索支持（标题、心情、地点的模糊搜索）
@@ -117,15 +128,62 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// 获取所有照片（管理员专用，返回包括隐藏的所有照片）
+router.get('/admin/all', authenticateToken, async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, sort = 'created' } = req.query;
+    const safeLimit = Math.max(1, Math.min(100, parseInt(limit) || 20));
+    const safeOffset = Math.max(0, (parseInt(page) - 1) * safeLimit);
+
+    let orderBy;
+    switch (sort) {
+      case 'date':
+        orderBy = 'shot_date DESC, created_at DESC';
+        break;
+      case 'created':
+        orderBy = 'created_at DESC';
+        break;
+      case 'manual':
+        orderBy = 'sort_order DESC, created_at DESC';
+        break;
+      default:
+        orderBy = 'created_at DESC';
+    }
+
+    // 获取所有照片（包括隐藏的）
+    const photos = await query(
+      `SELECT id, title, url, thumbnail_url, original_url, mood, shot_date, location,
+              width, height, file_size, sort_order, visibility,
+              created_at, user_id, latitude, longitude
+       FROM photos
+       ORDER BY ${orderBy}
+       LIMIT ${safeLimit} OFFSET ${safeOffset}`
+    );
+
+    const [countResult] = await query('SELECT COUNT(*) as total FROM photos');
+
+    res.json({
+      data: photos,
+      total: countResult.total,
+      page: parseInt(page),
+      limit: safeLimit,
+      totalPages: Math.ceil(countResult.total / safeLimit)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 获取单张照片详情
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
 
     const photos = await query(
-      `SELECT id, title, url, thumbnail_url, original_url, mood, shot_date, location,
-              width, height, file_size, sort_order, is_visible, created_at
-       FROM photos WHERE id = ? AND is_visible = 1`,
+      `SELECT p.*, u.username, u.nickname as author_name, u.avatar as author_avatar
+       FROM photos p
+       LEFT JOIN users u ON p.user_id = u.id
+       WHERE p.id = ? AND p.visibility = 'public'`,
       [id]
     );
 
@@ -139,13 +197,64 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+// 获取我的照片（需要登录）
+router.get('/my/list', authenticateToken, async (req, res, next) => {
+  try {
+    const { page = 1, limit = 12, sort = 'date' } = req.query;
+    const safeLimit = Math.max(1, Math.min(100, parseInt(limit) || 12));
+    const safeOffset = Math.max(0, (parseInt(page) - 1) * safeLimit);
+    const userId = req.user.id;
+
+    let orderBy;
+    switch (sort) {
+      case 'date':
+        orderBy = 'shot_date DESC, create_time DESC';
+        break;
+      case 'created':
+        orderBy = 'create_time DESC';
+        break;
+      case 'manual':
+        orderBy = 'sort_order DESC, create_time DESC';
+        break;
+      default:
+        orderBy = 'shot_date DESC, create_time DESC';
+    }
+
+    // 获取用户自己的照片（所有状态）
+    const photos = await query(
+      `SELECT id, title, url, thumbnail_url, original_url, mood, shot_date, location,
+              width, height, file_size, sort_order, visibility, created_at
+       FROM photos
+       WHERE user_id = ?
+       ORDER BY ${orderBy}
+       LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      [userId]
+    );
+
+    const [countResult] = await query(
+      'SELECT COUNT(*) as total FROM photos WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({
+      data: photos,
+      total: countResult.total,
+      page: parseInt(page),
+      limit: safeLimit,
+      totalPages: Math.ceil(countResult.total / safeLimit)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 获取随机照片（用于暗房手电筒效果）
 router.get('/random/diary', async (req, res, next) => {
   try {
     // 只要上传成功就显示，不要求必须填写mood等信息
     const photos = await query(
       `SELECT id, title, url, thumbnail_url, mood, shot_date, location
-       FROM photos WHERE is_visible = 1
+       FROM photos WHERE visibility != 'hidden'
        ORDER BY RAND() LIMIT 1`
     );
 
@@ -164,7 +273,7 @@ router.get('/stats/timeline', async (req, res, next) => {
   try {
     const stats = await query(
       `SELECT YEAR(shot_date) as year, COUNT(*) as count
-       FROM photos WHERE is_visible = 1 AND shot_date IS NOT NULL
+       FROM photos WHERE visibility != 'hidden' AND shot_date IS NOT NULL
        GROUP BY YEAR(shot_date) ORDER BY year DESC`
     );
 
@@ -180,7 +289,7 @@ router.get('/map/markers', async (req, res, next) => {
     const markers = await query(
       `SELECT id, title, thumbnail_url, shot_date, location, latitude, longitude
        FROM photos 
-       WHERE is_visible = 1 AND latitude IS NOT NULL AND longitude IS NOT NULL
+       WHERE visibility != 'hidden' AND latitude IS NOT NULL AND longitude IS NOT NULL
        ORDER BY shot_date DESC`
     );
 
@@ -198,7 +307,7 @@ router.post('/', authenticateToken, async (req, res, next) => {
     const {
       title, url, thumbnail_url, original_url,
       mood, shot_date, location, width, height,
-      file_size, sort_order, is_visible = 1,
+      file_size, sort_order, visibility = 'public',
       latitude, longitude
     } = req.body;
 
@@ -210,9 +319,9 @@ router.post('/', authenticateToken, async (req, res, next) => {
     const toNull = (v) => (v === undefined || v === '' ? null : v);
 
     const result = await query(
-      `INSERT INTO photos (user_id, title, url, thumbnail_url, original_url, mood, shot_date, location, width, height, file_size, sort_order, is_visible, latitude, longitude)
+      `INSERT INTO photos (user_id, title, url, thumbnail_url, original_url, mood, shot_date, location, width, height, file_size, sort_order, visibility, latitude, longitude)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.id, title, url, toNull(thumbnail_url), toNull(original_url), toNull(mood), toNull(shot_date), toNull(location), toNull(width), toNull(height), toNull(file_size), sort_order || 0, is_visible, toNull(latitude), toNull(longitude)]
+      [req.user.id, toNull(title), toNull(url), toNull(thumbnail_url), toNull(original_url), toNull(mood), formatDate(shot_date), toNull(location), toNull(width), toNull(height), toNull(file_size), sort_order || 0, visibility, toNull(latitude), toNull(longitude)]
     );
 
     const photos = await query('SELECT * FROM photos WHERE id = ?', [result.insertId]);
@@ -222,36 +331,37 @@ router.post('/', authenticateToken, async (req, res, next) => {
   }
 });
 
-// 更新照片
+// 更新照片（需要登录，且是照片所有者或管理员）
 router.put('/:id', authenticateToken, async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
       title, url, thumbnail_url, original_url,
       mood, shot_date, location, width, height,
-      file_size, sort_order, is_visible,
+      file_size, sort_order, visibility,
       latitude, longitude
     } = req.body;
 
-    const existing = await query('SELECT id FROM photos WHERE id = ?', [id]);
+    // 获取照片信息
+    const existing = await query('SELECT id, user_id FROM photos WHERE id = ?', [id]);
     if (existing.length === 0) {
       throw new ValidationError('照片不存在');
+    }
+
+    // 权限检查：只有照片所有者或管理员可以更新
+    const isOwner = existing[0].user_id === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: '无权修改此照片' });
     }
 
     // 将 undefined 和空字符串转换为 null
     const toNull = (v) => (v === undefined || v === '' ? null : v);
 
-    //将ISO日期转换为MYSQL日期格式
-    const formatDate = (v) => {
-      if(!v) return null;
-      if(typeof v === 'string'){
-        // 如果字符串是ISO格式(YYYY-MM-DDTHH:mm:ss.sssZ)，提取日期部分
-        const match = v.match(/^(\d{4}-\d{2}-\d{2})/); //  
-        if(match) return match[1]; 
-        return v; //已经是YYYY-MM-DD格式，直接返回
-      }
-      return null;
-    };
+    // 普通用户不能设置 visibility，除非是管理员
+    const visibilityValue = isAdmin ? toNull(visibility) : null;
+
 
     await query(
       `UPDATE photos SET
@@ -266,11 +376,11 @@ router.put('/:id', authenticateToken, async (req, res, next) => {
         height = COALESCE(?, height),
         file_size = COALESCE(?, file_size),
         sort_order = COALESCE(?, sort_order),
-        is_visible = COALESCE(?, is_visible),
+        visibility = COALESCE(?, visibility),
         latitude = COALESCE(?, latitude),
         longitude = COALESCE(?, longitude)
        WHERE id = ?`,
-      [title, url, toNull(thumbnail_url), toNull(original_url), toNull(mood), formatDate(shot_date), toNull(location), toNull(width), toNull(height), toNull(file_size), toNull(sort_order), toNull(is_visible), toNull(latitude), toNull(longitude), id]
+      [toNull(title), toNull(url), toNull(thumbnail_url), toNull(original_url), toNull(mood), formatDate(shot_date), toNull(location), toNull(width), toNull(height), toNull(file_size), toNull(sort_order), visibilityValue, toNull(latitude), toNull(longitude), id]
     );
 
     const photos = await query('SELECT * FROM photos WHERE id = ?', [id]);
@@ -280,14 +390,22 @@ router.put('/:id', authenticateToken, async (req, res, next) => {
   }
 });
 
-// 删除照片
+// 删除照片（需要登录，且是照片所有者或管理员）
 router.delete('/:id', authenticateToken, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const existing = await query('SELECT id FROM photos WHERE id = ?', [id]);
+    const existing = await query('SELECT id, user_id FROM photos WHERE id = ?', [id]);
     if (existing.length === 0) {
       throw new ValidationError('照片不存在');
+    }
+
+    // 权限检查：只有照片所有者或管理员可以删除
+    const isOwner = existing[0].user_id === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: '无权删除此照片' });
     }
 
     await query('DELETE FROM photos WHERE id = ?', [id]);

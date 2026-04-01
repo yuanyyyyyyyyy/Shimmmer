@@ -66,7 +66,7 @@ async function processImage(buffer, filename) {
     thumbnailUrl: `${backendUrl}/uploads/thumbnails/${name}${ext}`,
     width: metadata.width,
     height: metadata.height,
-    fileSize: Math.round(fs.statSync(compressedPath).size / 1024) // KB
+    file_size: Math.round(fs.statSync(compressedPath).size / 1024) // KB - 改为蛇形命名
   };
 }
 

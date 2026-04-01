@@ -2,11 +2,12 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { favorites } from '../api'
-import { getFingerprint } from '../stores'
+import { useAuthStore, getFingerprint } from '../stores'
 import { error } from '../composables/useToast'
 import Lightbox from '../components/Lightbox.vue'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const list = ref([])
 const loading = ref(true)
 const fp = getFingerprint()
@@ -16,7 +17,7 @@ const lightboxVisible = ref(false)
 const lightboxIndex = ref(0)
 
 // 转换为 Lightbox 需要的照片格式
-const photoList = computed(() => 
+const photoList = computed(() =>
   list.value.map(item => ({
     id: item.photo_id,
     url: item.url,
@@ -31,7 +32,7 @@ const photoList = computed(() =>
 const loadFavorites = async () => {
   loading.value = true
   try {
-    const res = await favorites.list(fp)
+    const res = await favorites.list()
     list.value = res.favorites
   } catch (e) {
     console.error(e)
@@ -44,7 +45,7 @@ const removeFavorite = async (photoId, e) => {
   e.preventDefault()
   e.stopPropagation()
   try {
-    await favorites.remove(photoId, fp)
+    await favorites.remove(photoId)
     list.value = list.value.filter(f => f.photo_id !== photoId)
   } catch (e) {
     error(e.response?.data?.error || '操作失败')
@@ -76,24 +77,29 @@ onMounted(loadFavorites)
     <div class="container">
       <h2>我的收藏</h2>
       <div v-if="loading" class="loading">加载中...</div>
-      <div v-else-if="list.length === 0" class="empty">
-        <p>暂无收藏</p>
-        <p class="hint">点击照片上的 ♥ 收藏</p>
-      </div>
-      <div v-else class="fav-grid">
-        <div 
-          v-for="(item, index) in list" 
-          :key="item.id" 
-          class="fav-card"
-          @click="openLightbox(index)"
-        >
-          <img :src="item.thumbnail_url || item.url" :alt="item.title" />
-          <div class="fav-overlay">
-            <button class="remove-btn" @click="removeFavorite(item.photo_id, $event)">✕</button>
-            <div v-if="item.mood" class="fav-mood">{{ item.mood }}</div>
+      <template v-else>
+        <div v-if="list.length === 0" class="empty">
+          <p>暂无收藏</p>
+          <p class="hint">点击照片上的 ♥ 收藏</p>
+          <p v-if="!authStore.isLoggedIn" class="login-hint">
+            <router-link to="/login">登录</router-link> 后收藏将同步保存
+          </p>
+        </div>
+        <div v-else class="fav-grid">
+          <div
+            v-for="(item, index) in list"
+            :key="item.id"
+            class="fav-card"
+            @click="openLightbox(index)"
+          >
+            <img :src="item.thumbnail_url || item.url" :alt="item.title" />
+            <div class="fav-overlay">
+              <button class="remove-btn" @click="removeFavorite(item.photo_id, $event)">✕</button>
+              <div v-if="item.mood" class="fav-mood">{{ item.mood }}</div>
+            </div>
           </div>
         </div>
-      </div>
+      </template>
 
       <!-- Lightbox -->
       <Lightbox
@@ -171,4 +177,17 @@ h2 { margin-bottom: 24px; }
 
 .empty p { margin-bottom: 8px; }
 .hint { font-size: 0.9rem; }
+.login-hint {
+  margin-top: 16px;
+  font-size: 0.9rem;
+}
+
+.login-hint a {
+  color: var(--secondary-color);
+  text-decoration: none;
+}
+
+.login-hint a:hover {
+  text-decoration: underline;
+}
 </style>

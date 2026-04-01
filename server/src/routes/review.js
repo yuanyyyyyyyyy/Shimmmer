@@ -9,7 +9,7 @@ router.get('/years', async (req, res, next) => {
     const years = await query(
       `SELECT DISTINCT YEAR(shot_date) as year
        FROM photos 
-       WHERE is_visible = 1 AND shot_date IS NOT NULL
+       WHERE visibility != 'hidden' AND shot_date IS NOT NULL
        ORDER BY year DESC`
     );
 
@@ -35,7 +35,7 @@ router.get('/:year', async (req, res, next) => {
         COUNT(*) as total_photos,
         SUM(file_size) as total_size
        FROM photos 
-       WHERE is_visible = 1 AND YEAR(shot_date) = ?`,
+       WHERE visibility != 'hidden' AND YEAR(shot_date) = ?`,
       [yearInt]
     );
 
@@ -45,7 +45,7 @@ router.get('/:year', async (req, res, next) => {
         MONTH(shot_date) as month,
         COUNT(*) as count
        FROM photos 
-       WHERE is_visible = 1 AND YEAR(shot_date) = ? AND shot_date IS NOT NULL
+       WHERE visibility != 'hidden' AND YEAR(shot_date) = ? AND shot_date IS NOT NULL
        GROUP BY MONTH(shot_date)
        ORDER BY month`,
       [yearInt]
@@ -57,7 +57,7 @@ router.get('/:year', async (req, res, next) => {
        FROM tags t
        JOIN photo_tags pt ON t.id = pt.tag_id
        JOIN photos p ON pt.photo_id = p.id
-       WHERE p.is_visible = 1 AND YEAR(p.shot_date) = ?
+       WHERE p.visibility != 'hidden' AND YEAR(p.shot_date) = ?
        GROUP BY t.id
        ORDER BY count DESC
        LIMIT 10`,
@@ -68,7 +68,7 @@ router.get('/:year', async (req, res, next) => {
     const topLocations = await query(
       `SELECT location, COUNT(*) as count
        FROM photos 
-       WHERE is_visible = 1 AND YEAR(shot_date) = ? AND location IS NOT NULL AND location != ''
+       WHERE visibility != 'hidden' AND YEAR(shot_date) = ? AND location IS NOT NULL AND location != ''
        GROUP BY location
        ORDER BY count DESC
        LIMIT 10`,
@@ -81,7 +81,7 @@ router.get('/:year', async (req, res, next) => {
         MIN(shot_date) as first_photo,
         MAX(shot_date) as last_photo
        FROM photos 
-       WHERE is_visible = 1 AND YEAR(shot_date) = ? AND shot_date IS NOT NULL`,
+       WHERE visibility != 'hidden' AND YEAR(shot_date) = ? AND shot_date IS NOT NULL`,
       [yearInt]
     );
 
@@ -93,7 +93,7 @@ router.get('/:year', async (req, res, next) => {
         MIN(width) as min_width,
         MAX(width) as max_width
        FROM photos 
-       WHERE is_visible = 1 AND YEAR(shot_date) = ? AND width IS NOT NULL`,
+       WHERE visibility != 'hidden' AND YEAR(shot_date) = ? AND width IS NOT NULL`,
       [yearInt]
     );
 
@@ -101,7 +101,7 @@ router.get('/:year', async (req, res, next) => {
     const gpsStats = await query(
       `SELECT COUNT(*) as count
        FROM photos 
-       WHERE is_visible = 1 AND YEAR(shot_date) = ? AND latitude IS NOT NULL AND longitude IS NOT NULL`,
+       WHERE visibility != 'hidden' AND YEAR(shot_date) = ? AND latitude IS NOT NULL AND longitude IS NOT NULL`,
       [yearInt]
     );
 

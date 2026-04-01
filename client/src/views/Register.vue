@@ -7,24 +7,36 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const username = ref('')
+const nickname = ref('')
 const password = ref('')
+const confirmPassword = ref('')
 const loading = ref(false)
 const error = ref('')
 
-const handleLogin = async () => {
+const handleRegister = async () => {
   if (!username.value || !password.value) {
-    error.value = '请输入用户名和密码'
+    error.value = '请填写用户名和密码'
     return
   }
-  
+
+  if (password.value !== confirmPassword.value) {
+    error.value = '两次输入的密码不一致'
+    return
+  }
+
+  if (password.value.length < 6) {
+    error.value = '密码长度至少为6位'
+    return
+  }
+
   loading.value = true
   error.value = ''
-  
+
   try {
-    await authStore.login(username.value, password.value)
+    await authStore.register(username.value, password.value, nickname.value || username.value)
     router.push('/')
   } catch (e) {
-    error.value = e.response?.data?.error || '登录失败'
+    error.value = e.response?.data?.error || '注册失败'
   } finally {
     loading.value = false
   }
@@ -32,34 +44,52 @@ const handleLogin = async () => {
 </script>
 
 <template>
-  <div class="login">
+  <div class="register">
     <div class="container">
-      <div class="login-box">
-        <h2>用户登录</h2>
-        <form @submit.prevent="handleLogin">
+      <div class="register-box">
+        <h2>用户注册</h2>
+        <form @submit.prevent="handleRegister">
           <div class="form-group">
             <input
               v-model="username"
               type="text"
-              placeholder="用户名"
+              placeholder="用户名（3-20位字母、数字或下划线）"
               :disabled="loading"
+              maxlength="20"
+            />
+          </div>
+          <div class="form-group">
+            <input
+              v-model="nickname"
+              type="text"
+              placeholder="昵称（选填）"
+              :disabled="loading"
+              maxlength="50"
             />
           </div>
           <div class="form-group">
             <input
               v-model="password"
               type="password"
-              placeholder="密码"
+              placeholder="密码（至少6位）"
+              :disabled="loading"
+            />
+          </div>
+          <div class="form-group">
+            <input
+              v-model="confirmPassword"
+              type="password"
+              placeholder="确认密码"
               :disabled="loading"
             />
           </div>
           <div v-if="error" class="error">{{ error }}</div>
           <button type="submit" :disabled="loading">
-            {{ loading ? '登录中...' : '登录' }}
+            {{ loading ? '注册中...' : '注册' }}
           </button>
         </form>
         <p class="hint">
-          还没有账号？<router-link to="/register">立即注册</router-link>
+          已有账号？<router-link to="/login">立即登录</router-link>
         </p>
       </div>
     </div>
@@ -67,14 +97,14 @@ const handleLogin = async () => {
 </template>
 
 <style scoped>
-.login {
+.register {
   min-height: calc(100vh - 140px);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.login-box {
+.register-box {
   background: #fff;
   padding: 40px;
   border-radius: 12px;

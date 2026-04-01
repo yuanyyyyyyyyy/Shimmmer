@@ -1,13 +1,16 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { tags } from './api'
+import { useAuthStore } from './stores'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const searchQuery = ref('')
 const popularTags = ref([])
 const showTags = ref(false)
 const isDarkMode = ref(false)
+const showUserMenu = ref(false)
 
 // 加载热门标签
 const loadPopularTags = async () => {
@@ -45,8 +48,27 @@ const toggleDarkMode = () => {
   document.documentElement.classList.toggle('dark', isDarkMode.value)
 }
 
+// 退出登录
+const handleLogout = () => {
+  authStore.logout()
+  showUserMenu.value = false
+  router.push('/')
+}
+
+// 关闭用户菜单
+const closeUserMenu = () => {
+  showUserMenu.value = false
+}
+
+// 点击外部关闭菜单
+const handleClickOutside = (e) => {
+  if (showUserMenu.value && !e.target.closest('.user-menu-wrapper')) {
+    showUserMenu.value = false
+  }
+}
+
 // 初始化
-onMounted(() => {
+onMounted(async () => {
   // 读取深色模式设置
   const saved = localStorage.getItem('darkMode')
   if (saved === 'true') {
@@ -54,6 +76,23 @@ onMounted(() => {
     document.documentElement.classList.add('dark')
   }
   loadPopularTags()
+
+  // 获取用户信息
+  if (authStore.token && !authStore.user) {
+    await authStore.fetchUser()
+  }
+
+  // 添加点击事件监听
+  document.addEventListener('click', handleClickOutside)
+})
+
+// 监听用户菜单状态
+watch(showUserMenu, (newVal) => {
+  if (newVal) {
+    document.addEventListener('click', handleClickOutside)
+  } else {
+    document.removeEventListener('click', handleClickOutside)
+  }
 })
 </script>
 
@@ -100,12 +139,53 @@ onMounted(() => {
           <RouterLink to="/timeline">时间轴</RouterLink>
           <RouterLink to="/darkroom">暗房</RouterLink>
           <RouterLink to="/map">地图</RouterLink>
-          <RouterLink to="/favorites">收藏</RouterLink>
+
+          <!-- 未登录状态 -->
+          <template v-if="!authStore.isLoggedIn">
+            <RouterLink to="/login">登录</RouterLink>
+          </template>
+
+          <!-- 已登录状态 -->
+          <template v-else>
+            <RouterLink to="/favorites">收藏</RouterLink>
+          </template>
+
           <RouterLink to="/review">回顾</RouterLink>
+
           <button class="dark-toggle" @click="toggleDarkMode" :title="isDarkMode ? '切换亮色模式' : '切换深色模式'">
             {{ isDarkMode ? '☀️' : '🌙' }}
           </button>
-          <RouterLink to="/admin" class="admin-link">管理</RouterLink>
+
+          <!-- 用户菜单（已登录） -->
+          <div v-if="authStore.isLoggedIn" class="user-menu-wrapper">
+            <button class="user-btn" @click.stop="showUserMenu = !showUserMenu">
+              <span class="user-avatar">
+                {{ (authStore.user?.nickname || authStore.user?.username || 'U').charAt(0).toUpperCase() }}
+              </span>
+              <span class="user-name">{{ authStore.user?.nickname || authStore.user?.username }}</span>
+              <span class="dropdown-arrow">▼</span>
+            </button>
+            <div v-if="showUserMenu" class="user-dropdown">
+              <div class="dropdown-header">
+                <span class="role-badge" :class="authStore.user?.role">
+                  {{ authStore.user?.role === 'admin' ? '管理员' : '用户' }}
+                </span>
+              </div>
+              <router-link :to="`/user/${authStore.user?.id}`" class="dropdown-item" @click="closeUserMenu">
+                我的主页
+              </router-link>
+              <router-link to="/favorites" class="dropdown-item" @click="closeUserMenu">
+                我的收藏
+              </router-link>
+              <router-link v-if="authStore.isAdmin" to="/admin" class="dropdown-item admin" @click="closeUserMenu">
+                管理后台
+              </router-link>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item logout" @click="handleLogout">
+                退出登录
+              </button>
+            </div>
+          </div>
         </nav>
       </div>
     </header>
@@ -137,6 +217,11 @@ onMounted(() => {
   --text-tertiary: #888;
   --bg-color: #1a1a1a;
   --card-bg: #2d2d2d;
+  --hover-bg: rgba(255,255,255,0.1);
+}
+
+:root {
+  --hover-bg: rgba(0,0,0,0.05);
 }
 
 body {
@@ -276,6 +361,118 @@ body {
 
 .dark-toggle:hover {
   background: var(--hover-bg);
+}
+
+/* 用户菜单 */
+.user-menu-wrapper {
+  position: relative;
+}
+
+.user-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 4px 12px 4px 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.user-btn:hover {
+  background: var(--hover-bg);
+}
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--secondary-color);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.user-name {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-arrow {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+}
+
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  min-width: 180px;
+  padding: 8px 0;
+  z-index: 200;
+}
+
+.dropdown-header {
+  padding: 8px 16px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 8px;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background: #eee;
+  color: #666;
+}
+
+.role-badge.admin {
+  background: var(--secondary-color);
+  color: #fff;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  text-align: left;
+  text-decoration: none;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dropdown-item:hover {
+  background: var(--hover-bg);
+}
+
+.dropdown-item.admin {
+  color: var(--secondary-color);
+}
+
+.dropdown-item.logout {
+  color: #e74c3c;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #eee;
+  margin: 8px 0;
 }
 
 .main {

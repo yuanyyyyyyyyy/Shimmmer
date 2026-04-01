@@ -39,18 +39,23 @@ const form = ref({
   width: 0,
   height: 0,
   file_size: 0,
-  is_visible: 1,
+  visibility: 'public', // public | private | hidden
   latitude: null,
   longitude: null
 })
 
-// 检查登录
+// 检查登录和管理员权限
 onMounted(async () => {
   if (!authStore.isLoggedIn) {
     router.push('/login')
     return
   }
   await authStore.fetchUser()
+  if (!authStore.isAdmin) {
+    // 非管理员只能看到自己的照片，使用 /my 页面
+    router.push('/my')
+    return
+  }
   loadPhotos()
   loadTags()
 })
@@ -103,11 +108,18 @@ const handleBatchUploading = (isUploading) => {
 const loadPhotos = async () => {
   loading.value = true
   try {
-    const res = await photos.list({ page: page.value, limit: 20, sort: 'created' })
+    const token = localStorage.getItem('token')
+    console.log('Token:', token ? '存在' : '不存在')
+    console.log('User:', authStore.user)
+    
+    const res = await photos.getAdminPhotos({ page: page.value, limit: 20, sort: 'created' })
+    console.log('Admin photos response:', res)
     photoList.value = res.data
     total.value = res.total
   } catch (e) {
-    console.error(e)
+    console.error('加载照片失败:', e)
+    console.error('Error response:', e.response?.data)
+    error(e.response?.data?.error || '加载照片失败')
   } finally {
     loading.value = false
   }
@@ -203,6 +215,26 @@ const handleDelete = async (photo) => {
   }
 }
 
+// 切换可见性
+const toggleVisibility = async (photo) => {
+  try {
+    const options = ['public', 'private', 'hidden']
+    const currentIndex = options.indexOf(photo.visibility)
+    const nextIndex = (currentIndex + 1) % options.length
+    const newVisibility = options[nextIndex]
+    await photos.update(photo.id, { visibility: newVisibility })
+    photo.visibility = newVisibility
+    success(`已设置为 ${getVisibilityLabel(newVisibility)}`)
+  } catch (err) {
+    error(err.response?.data?.error || '操作失败')
+  }
+}
+
+const getVisibilityLabel = (visibility) => {
+  const labels = { public: '公开', private: '私有', hidden: '隐藏' }
+  return labels[visibility] || visibility
+}
+
 // 编辑
 const handleEdit = async (photo) => {
   editingPhoto.value = photo
@@ -234,7 +266,7 @@ const resetForm = () => {
     width: 0,
     height: 0,
     file_size: 0,
-    is_visible: 1,
+    visibility: 'public',
     latitude: null,
     longitude: null
   }
@@ -262,7 +294,7 @@ const handleBatchSave = async () => {
         width: photo.width,
         height: photo.height,
         file_size: photo.file_size,
-        is_visible: form.value.is_visible
+        visibility: form.value.visibility
       }
       
       const res = await photos.create(data)
@@ -313,9 +345,12 @@ const handleLogout = () => {
             <span class="meta">{{ photo.shot_date }} · {{ photo.location || '无地点' }}</span>
           </div>
           <div class="photo-actions">
-            <span :class="['status', photo.is_visible ? 'visible' : 'hidden']">
-              {{ photo.is_visible ? '公开' : '隐藏' }}
-            </span>
+            <button 
+              :class="['visibility-btn', photo.visibility]"
+              @click="toggleVisibility(photo)"
+            >
+              {{ getVisibilityLabel(photo.visibility) }}
+            </button>
             <button @click="handleEdit(photo)">编辑</button>
             <button class="delete" @click="handleDelete(photo)">删除</button>
           </div>
@@ -386,11 +421,31 @@ const handleLogout = () => {
                 <input v-model="form.location" type="text" placeholder="拍摄地点" />
               </div>
             </div>
-            <div class="form-group">
-              <label>
-                <input v-model="form.is_visible" type="checkbox" :value="1" />
-                公开显示
-              </label>
+            <div class="form-group visibility-group">
+              <label>可见性</label>
+              <div class="visibility-options">
+                <label class="radio-option">
+                  <input v-model="form.visibility" type="radio" value="public" />
+                  <span class="radio-label">
+                    <strong>公开</strong>
+                    <small>所有访客可见</small>
+                  </span>
+                </label>
+                <label class="radio-option">
+                  <input v-model="form.visibility" type="radio" value="private" />
+                  <span class="radio-label">
+                    <strong>仅自己</strong>
+                    <small>仅自己可见</small>
+                  </span>
+                </label>
+                <label class="radio-option">
+                  <input v-model="form.visibility" type="radio" value="hidden" />
+                  <span class="radio-label">
+                    <strong>隐藏</strong>
+                    <small>临时下架，不显示</small>
+                  </span>
+                </label>
+              </div>
             </div>
             
             <!-- 标签选择 -->
@@ -526,14 +581,68 @@ const handleLogout = () => {
   border-color: #e74c3c;
 }
 
-.status {
-  padding: 4px 8px;
+.visibility-btn {
+  padding: 4px 10px;
+  border: none;
   border-radius: 4px;
   font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.status.visible { background: #d4edda; color: #155724; }
-.status.hidden { background: #f8d7da; color: #721c24; }
+.visibility-btn.public { 
+  background: #cce5ff; 
+  color: #004085; 
+}
+
+.visibility-btn.private { 
+  background: #fff3cd; 
+  color: #856404; 
+}
+
+.visibility-btn.hidden { 
+  background: #f8d7da; 
+  color: #721c24; 
+}
+
+.visibility-btn:hover {
+  opacity: 0.85;
+}
+
+.visibility-group {
+  margin-bottom: 16px;
+}
+
+.visibility-options {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.radio-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.radio-option input {
+  margin-top: 4px;
+}
+
+.radio-label {
+  display: flex;
+  flex-direction: column;
+}
+
+.radio-label strong {
+  font-size: 0.95rem;
+}
+
+.radio-label small {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
 
 .loading, .empty {
   text-align: center;

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { auth } from '../api'
+import { auth, users } from '../api'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -7,11 +7,21 @@ export const useAuthStore = defineStore('auth', {
     token: localStorage.getItem('token') || null
   }),
   getters: {
-    isLoggedIn: state => !!state.token
+    isLoggedIn: state => !!state.token,
+    isAdmin: state => state.user?.role === 'admin',
+    userId: state => state.user?.id,
+    userRole: state => state.user?.role || 'guest'
   },
   actions: {
     async login(username, password) {
       const res = await auth.login(username, password)
+      this.token = res.token
+      this.user = res.user
+      localStorage.setItem('token', res.token)
+      return res
+    },
+    async register(username, password, nickname) {
+      const res = await auth.register(username, password, nickname)
       this.token = res.token
       this.user = res.user
       localStorage.setItem('token', res.token)
@@ -25,6 +35,11 @@ export const useAuthStore = defineStore('auth', {
       } catch (e) {
         this.logout()
       }
+    },
+    async updateProfile(data) {
+      const res = await users.updateProfile(data)
+      this.user = res.user
+      return res
     },
     logout() {
       this.token = null
