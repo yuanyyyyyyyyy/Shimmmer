@@ -190,7 +190,7 @@ onMounted(() => {
 }
 
 .subtitle {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .year-selector {
@@ -202,7 +202,7 @@ onMounted(() => {
 }
 
 .year-selector button {
-  background: #f0f0f0;
+  background: var(--input-bg);
   border: none;
   padding: 10px 20px;
   border-radius: 24px;
@@ -213,14 +213,14 @@ onMounted(() => {
 
 .year-selector button.active {
   background: oklch(41.462% 0.04699 149.954);
-  color: #fff;
+  color: var(--card-bg);
   transform: scale(1.05);
 }
 
 .loading, .empty {
   text-align: center;
   padding: 60px 20px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .hint {
@@ -236,16 +236,16 @@ onMounted(() => {
 }
 
 .overview-card {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 16px;
   padding: 24px 16px;
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 2px 8px var(--shadow-color);
 }
 
 .overview-card.highlight {
   background: linear-gradient(135deg, oklch(41.462% 0.04699 149.954), oklch(41.462% 0.04699 149.954));
-  color: #fff;
+  color: var(--card-bg);
 }
 
 .card-value {
@@ -262,22 +262,22 @@ onMounted(() => {
 .date-range {
   text-align: center;
   margin-bottom: 32px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .section {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 2px 8px var(--shadow-color);
 }
 
 .section h2 {
   font-size: 1.2rem;
   margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--input-bg);
 }
 
 .monthly-chart {
@@ -302,14 +302,14 @@ onMounted(() => {
 
 .month-label {
   font-size: 10px;
-  color: #999;
+  color: var(--text-tertiary);
   position: absolute;
   bottom: -20px;
 }
 
 .month-count {
   font-size: 10px;
-  color: #fff;
+  color: var(--card-bg);
   padding: 2px 0;
 }
 
@@ -323,7 +323,7 @@ onMounted(() => {
   padding: 6px 14px;
   border-radius: 16px;
   font-size: 0.9rem;
-  color: #fff;
+  color: var(--card-bg);
 }
 
 .locations-list {
@@ -337,7 +337,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: #f8f8f8;
+  background: var(--input-bg);
   border-radius: 8px;
 }
 
@@ -345,7 +345,7 @@ onMounted(() => {
   width: 24px;
   height: 24px;
   background: oklch(41.462% 0.04699 149.954);
-  color: #fff;
+  color: var(--card-bg);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -360,7 +360,7 @@ onMounted(() => {
 }
 
 .count {
-  color: #999;
+  color: var(--text-tertiary);
   font-size: 0.9rem;
 }
 
@@ -380,7 +380,7 @@ onMounted(() => {
 }
 
 .stat-label {
-  color: #999;
+  color: var(--text-tertiary);
   font-size: 0.9rem;
 }
 

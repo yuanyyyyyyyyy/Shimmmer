@@ -241,6 +241,18 @@ router.put('/:id', authenticateToken, async (req, res, next) => {
     // 将 undefined 和空字符串转换为 null
     const toNull = (v) => (v === undefined || v === '' ? null : v);
 
+    //将ISO日期转换为MYSQL日期格式
+    const formatDate = (v) => {
+      if(!v) return null;
+      if(typeof v === 'string'){
+        // 如果字符串是ISO格式(YYYY-MM-DDTHH:mm:ss.sssZ)，提取日期部分
+        const match = v.match(/^(\d{4}-\d{2}-\d{2})/); //  
+        if(match) return match[1]; 
+        return v; //已经是YYYY-MM-DD格式，直接返回
+      }
+      return null;
+    };
+
     await query(
       `UPDATE photos SET
         title = COALESCE(?, title),
@@ -258,7 +270,7 @@ router.put('/:id', authenticateToken, async (req, res, next) => {
         latitude = COALESCE(?, latitude),
         longitude = COALESCE(?, longitude)
        WHERE id = ?`,
-      [title, url, toNull(thumbnail_url), toNull(original_url), toNull(mood), toNull(shot_date), toNull(location), toNull(width), toNull(height), toNull(file_size), toNull(sort_order), toNull(is_visible), toNull(latitude), toNull(longitude), id]
+      [title, url, toNull(thumbnail_url), toNull(original_url), toNull(mood), formatDate(shot_date), toNull(location), toNull(width), toNull(height), toNull(file_size), toNull(sort_order), toNull(is_visible), toNull(latitude), toNull(longitude), id]
     );
 
     const photos = await query('SELECT * FROM photos WHERE id = ?', [id]);

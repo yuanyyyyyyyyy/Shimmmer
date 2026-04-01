@@ -107,7 +107,7 @@ onMounted(loadPhoto)
 }
 
 .photo-wrapper {
-  background: #000;
+  background: var(--bg-color);
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
@@ -125,7 +125,7 @@ onMounted(loadPhoto)
 .meta {
   display: flex;
   gap: 16px;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 16px;
 }
 
@@ -136,7 +136,7 @@ onMounted(loadPhoto)
 }
 
 .fav-btn {
-  background: #f0f0f0;
+  background: var(--input-bg);
   border: none;
   padding: 12px 24px;
   border-radius: 24px;
@@ -145,7 +145,7 @@ onMounted(loadPhoto)
 }
 
 .fav-btn.active {
-  color: #e74c3c;
+  color: var(--secondary-color);
 }
 
 .loading {

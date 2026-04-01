@@ -150,7 +150,7 @@ h2 { margin-bottom: 24px; }
   right: 8px;
   background: rgba(0,0,0,0.5);
   border: none;
-  color: #fff;
+  color: var(--card-bg);
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -158,7 +158,7 @@ h2 { margin-bottom: 24px; }
 }
 
 .fav-mood {
-  color: #fff;
+  color: var(--card-bg);
   text-align: center;
   padding: 12px;
 }
@@ -166,7 +166,7 @@ h2 { margin-bottom: 24px; }
 .loading, .empty {
   text-align: center;
   padding: 60px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .empty p { margin-bottom: 8px; }

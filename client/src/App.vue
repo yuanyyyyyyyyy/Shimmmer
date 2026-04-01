@@ -123,6 +123,8 @@ onMounted(() => {
   --primary-color: #2c3e50;
   --secondary-color: #3498db;
   --text-color: #333;
+  --text-secondary: #666;
+  --text-tertiary: #999;
   --bg-color: #fafafa;
   --card-bg: #fff;
 }
@@ -131,6 +133,8 @@ onMounted(() => {
   --primary-color: #e0e0e0;
   --secondary-color: #64b5f6;
   --text-color: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-tertiary: #888;
   --bg-color: #1a1a1a;
   --card-bg: #2d2d2d;
 }
@@ -240,6 +244,7 @@ body {
 
 .nav {
   display: flex;
+  align-items: center;
   gap: 24px;
 }
 
@@ -270,7 +275,7 @@ body {
 }
 
 .dark-toggle:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--hover-bg);
 }
 
 .main {
@@ -281,7 +286,7 @@ body {
 .footer {
   text-align: center;
   padding: 20px;
-  color: #999;
+  color: var(--text-tertiary);
   font-size: 0.9rem;
 }
 </style>

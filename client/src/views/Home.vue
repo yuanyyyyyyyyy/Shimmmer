@@ -313,12 +313,12 @@ watch(() => route.query, () => {
 .loading, .load-more, .empty {
   text-align: center;
   padding: 40px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .load-more button {
   background: var(--secondary-color);
-  color: #fff;
+  color: var(--card-bg);
   border: none;
   padding: 12px 32px;
   border-radius: 24px;

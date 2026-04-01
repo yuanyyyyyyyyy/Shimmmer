@@ -99,13 +99,13 @@ onMounted(() => {
 }
 
 .subtitle {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .loading, .empty {
   text-align: center;
   padding: 60px 20px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .hint {
@@ -118,7 +118,7 @@ onMounted(() => {
 }
 
 .map-placeholder {
-  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  background: var(--card-bg);
   border-radius: 16px;
   min-height: 500px;
   padding: 20px;
@@ -131,8 +131,8 @@ onMounted(() => {
   position: absolute;
   inset: 0;
   background-image: 
-    linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px);
+    linear-gradient(rgba(128,128,128,0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(128,128,128,0.1) 1px, transparent 1px);
   background-size: 40px 40px;
   pointer-events: none;
 }
@@ -151,12 +151,12 @@ onMounted(() => {
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px var(--shadow-color);
 }
 
 .map-marker:hover {
   transform: scale(1.05);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 20px var(--shadow-color);
 }
 
 .map-marker.selected {
@@ -201,9 +201,9 @@ onMounted(() => {
   top: 80px;
   right: 20px;
   width: 300px;
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 16px;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 40px var(--shadow-color);
   overflow: hidden;
   z-index: 100;
 }
@@ -223,14 +223,14 @@ onMounted(() => {
 }
 
 .detail-info p {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 0.9rem;
   margin-bottom: 4px;
 }
 
 .coords {
   font-size: 0.8rem;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .close-btn {
@@ -240,7 +240,7 @@ onMounted(() => {
   width: 28px;
   height: 28px;
   background: rgba(0,0,0,0.5);
-  color: #fff;
+  color: var(--card-bg);
   border: none;
   border-radius: 50%;
   cursor: pointer;
@@ -253,7 +253,7 @@ onMounted(() => {
 .stats {
   margin-top: 16px;
   text-align: center;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {

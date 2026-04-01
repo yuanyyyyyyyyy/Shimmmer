@@ -116,7 +116,7 @@ h2 { margin-bottom: 24px; }
 }
 
 .year-list button {
-  background: #f0f0f0;
+  background: var(--input-bg);
   border: none;
   padding: 8px 16px;
   border-radius: 20px;
@@ -126,7 +126,7 @@ h2 { margin-bottom: 24px; }
 
 .year-list button.active {
   background: var(--secondary-color);
-  color: #fff;
+  color: var(--card-bg);
 }
 
 .count { opacity: 0.7; font-size: 0.85rem; }
@@ -143,19 +143,19 @@ h2 { margin-bottom: 24px; }
   gap: 20px;
   align-items: center;
   padding: 16px;
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 8px;
   cursor: pointer;
   transition: box-shadow 0.2s;
 }
 
 .timeline-item:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px var(--shadow-color);
 }
 
 .timeline-date {
   font-size: 0.9rem;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .timeline-item img {
@@ -170,20 +170,20 @@ h2 { margin-bottom: 24px; }
 }
 
 .timeline-content p {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 0.9rem;
   margin-bottom: 4px;
 }
 
 .timeline-content span {
   font-size: 0.85rem;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .loading, .empty {
   text-align: center;
   padding: 40px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 @media (max-width: 600px) {

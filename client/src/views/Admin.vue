@@ -445,8 +445,8 @@ const handleLogout = () => {
 .upload-mode-switch button {
   flex: 1;
   padding: 8px 16px;
-  border: 2px solid #ddd;
-  background: #fff;
+  border: 2px solid var(--input-border);
+  background: var(--card-bg);
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
@@ -456,7 +456,7 @@ const handleLogout = () => {
 .upload-mode-switch button.active {
   border-color: var(--secondary-color);
   background: var(--secondary-color);
-  color: #fff;
+  color: var(--card-bg);
 }
 
 .header-actions {
@@ -466,7 +466,7 @@ const handleLogout = () => {
 
 .header-actions button {
   background: var(--secondary-color);
-  color: #fff;
+  color: var(--card-bg);
   border: none;
   padding: 10px 20px;
   border-radius: 8px;
@@ -488,7 +488,7 @@ const handleLogout = () => {
   align-items: center;
   gap: 16px;
   padding: 12px;
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 8px;
 }
 
@@ -504,8 +504,8 @@ const handleLogout = () => {
 }
 
 .photo-info h4 { margin-bottom: 4px; }
-.photo-info p { color: #666; font-size: 0.9rem; margin-bottom: 4px; }
-.photo-info .meta { color: #999; font-size: 0.8rem; }
+.photo-info p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 4px; }
+.photo-info .meta { color: var(--text-tertiary); font-size: 0.8rem; }
 
 .photo-actions {
   display: flex;
@@ -515,8 +515,8 @@ const handleLogout = () => {
 
 .photo-actions button {
   padding: 6px 12px;
-  border: 1px solid #ddd;
-  background: #fff;
+  border: 1px solid var(--input-border);
+  background: var(--card-bg);
   border-radius: 4px;
   cursor: pointer;
 }
@@ -538,7 +538,7 @@ const handleLogout = () => {
 .loading, .empty {
   text-align: center;
   padding: 40px;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 /* 弹窗 */
@@ -553,7 +553,7 @@ const handleLogout = () => {
 }
 
 .modal-content {
-  background: #fff;
+  background: var(--card-bg);
   padding: 24px;
   border-radius: 12px;
   width: 90%;
@@ -584,7 +584,7 @@ const handleLogout = () => {
   top: 8px;
   right: 8px;
   background: rgba(0,0,0,0.5);
-  color: #fff;
+  color: var(--card-bg);
   border: none;
   width: 28px;
   height: 28px;
@@ -593,7 +593,7 @@ const handleLogout = () => {
 }
 
 .upload-btn {
-  border: 2px dashed #ddd;
+  border: 2px dashed var(--input-border);
   border-radius: 8px;
   padding: 40px;
   text-align: center;
@@ -608,7 +608,7 @@ const handleLogout = () => {
   cursor: pointer;
 }
 
-.upload-btn span { color: #999; }
+.upload-btn span { color: var(--text-tertiary); }
 
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; margin-bottom: 6px; font-weight: 500; }
@@ -617,7 +617,7 @@ const handleLogout = () => {
 .form-group textarea {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border);
   border-radius: 6px;
 }
 
@@ -634,7 +634,7 @@ const handleLogout = () => {
   cursor: pointer;
   border: 2px solid transparent;
   transition: all 0.2s;
-  color: #333;
+  color: var(--text-color);
 }
 
 .tag-option:hover {
@@ -642,20 +642,20 @@ const handleLogout = () => {
 }
 
 .tag-option.selected {
-  color: #fff;
+  color: var(--card-bg);
 }
 
 .add-tag-btn {
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
-  background: #f0f0f0;
+  background: var(--input-bg);
   border: 2px dashed #ccc;
   cursor: pointer;
 }
 
 .add-tag-btn:hover {
-  border-color: #999;
+  border-color: var(--text-tertiary);
 }
 
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
