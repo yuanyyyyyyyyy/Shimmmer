@@ -38,13 +38,19 @@ router.get('/popular', async (req, res, next) => {
   }
 });
 
-// 创建标签（需要登录）
+// 创建标签（需要登录）- 如果标签已存在则返回已有的标签
 router.post('/', authenticateToken, async (req, res, next) => {
   try {
     const { name, color } = req.body;
     
     if (!name || !name.trim()) {
       return res.status(400).json({ error: '标签名称不能为空' });
+    }
+
+    // 先检查是否已存在
+    const [existing] = await db.query('SELECT * FROM tags WHERE name = ?', [name.trim()]);
+    if (existing.length > 0) {
+      return res.json({ tag: existing[0], message: '标签已存在' });
     }
 
     const [result] = await db.query(
@@ -56,7 +62,11 @@ router.post('/', authenticateToken, async (req, res, next) => {
     res.status(201).json({ tag: tags[0] });
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ error: '标签已存在' });
+      // 并发情况下再次检查
+      const [existing] = await db.query('SELECT * FROM tags WHERE name = ?', [name.trim()]);
+      if (existing.length > 0) {
+        return res.json({ tag: existing[0], message: '标签已存在' });
+      }
     }
     next(error);
   }

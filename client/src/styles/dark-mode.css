@@ -54,7 +54,7 @@
 
 /* 暗房页面特殊处理 - 保持暗色模式 */
 .darkroom {
-  background: #000 !important;
+  background: #fffefe !important;
 }
 
 .darkroom .photo-grid {

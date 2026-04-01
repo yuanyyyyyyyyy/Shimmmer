@@ -82,12 +82,14 @@ router.get('/', async (req, res, next) => {
     // 获取每张照片的标签
     if (photos.length > 0) {
       const photoIds = photos.map(p => p.id);
-      const [photoTags] = await query(`
+      // 手动构建 IN 子句，因为 execute 不支持 IN (?)
+      const placeholders = photoIds.map(() => '?').join(',');
+      const photoTags = await query(`
         SELECT pt.photo_id, t.id, t.name, t.color
         FROM photo_tags pt
         JOIN tags t ON pt.tag_id = t.id
-        WHERE pt.photo_id IN (?)
-      `, [photoIds]);
+        WHERE pt.photo_id IN (${placeholders})
+      `, photoIds);
 
       // 将标签附加到照片对象
       const tagsMap = {};

@@ -135,7 +135,7 @@ onMounted(() => {
               v-for="tag in reviewData.topTags" 
               :key="tag.id"
               class="tag-item"
-              :style="{ backgroundColor: tag.color }"
+              :style="{ backgroundColor: 'oklch(41.462% 0.04699 149.954)' }"
             >
               {{ tag.name }} ({{ tag.count }})
             </span>
@@ -212,7 +212,7 @@ onMounted(() => {
 }
 
 .year-selector button.active {
-  background: var(--secondary-color);
+  background: oklch(41.462% 0.04699 149.954);
   color: #fff;
   transform: scale(1.05);
 }
@@ -244,7 +244,7 @@ onMounted(() => {
 }
 
 .overview-card.highlight {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, oklch(41.462% 0.04699 149.954), oklch(41.462% 0.04699 149.954));
   color: #fff;
 }
 
@@ -290,7 +290,7 @@ onMounted(() => {
 
 .month-bar {
   flex: 1;
-  background: linear-gradient(to top, #667eea, #764ba2);
+  background: linear-gradient(to top, oklch(41.462% 0.04699 149.954), oklch(41.462% 0.04699 149.954));
   border-radius: 4px 4px 0 0;
   min-height: 4px;
   position: relative;
@@ -344,7 +344,7 @@ onMounted(() => {
 .rank {
   width: 24px;
   height: 24px;
-  background: var(--secondary-color);
+  background: oklch(41.462% 0.04699 149.954);
   color: #fff;
   border-radius: 50%;
   display: flex;

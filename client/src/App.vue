@@ -72,7 +72,12 @@ onMounted(() => {
               @keyup.enter="handleSearch"
               @focus="showTags = true"
             />
-            <button @click="handleSearch">🔍</button>
+            <button @click="handleSearch">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+              </svg>
+            </button>
           </div>
           <!-- 热门标签 -->
           <div v-if="showTags && popularTags.length > 0" class="tags-dropdown">
@@ -94,6 +99,7 @@ onMounted(() => {
           <RouterLink to="/">首页</RouterLink>
           <RouterLink to="/timeline">时间轴</RouterLink>
           <RouterLink to="/darkroom">暗房</RouterLink>
+          <RouterLink to="/map">地图</RouterLink>
           <RouterLink to="/favorites">收藏</RouterLink>
           <RouterLink to="/review">回顾</RouterLink>
           <button class="dark-toggle" @click="toggleDarkMode" :title="isDarkMode ? '切换亮色模式' : '切换深色模式'">
@@ -107,7 +113,7 @@ onMounted(() => {
       <RouterView />
     </main>
     <footer class="footer">
-      <p>© 2024 光影手记 · 用光影记录生活</p>
+      <p>© 光影手记 · 用光影记录生活</p>
     </footer>
   </div>
 </template>
@@ -185,6 +191,8 @@ body {
   border: none;
   cursor: pointer;
   font-size: 16px;
+  padding: 4px 8px;
+  opacity: 0.5;
 }
 
 .tags-dropdown {
@@ -227,6 +235,7 @@ body {
 .logo {
   font-size: 1.5rem;
   color: var(--primary-color);
+  text-decoration: none;
 }
 
 .nav {

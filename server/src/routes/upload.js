@@ -58,9 +58,12 @@ async function processImage(buffer, filename) {
   // 获取图片尺寸
   const metadata = await sharp(buffer).metadata();
   
+  // 使用完整URL
+  const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
+  
   return {
-    url: `/uploads/compressed/${name}${ext}`,
-    thumbnailUrl: `/uploads/thumbnails/${name}${ext}`,
+    url: `${backendUrl}/uploads/compressed/${name}${ext}`,
+    thumbnailUrl: `${backendUrl}/uploads/thumbnails/${name}${ext}`,
     width: metadata.width,
     height: metadata.height,
     fileSize: Math.round(fs.statSync(compressedPath).size / 1024) // KB

@@ -39,7 +39,9 @@ const form = ref({
   width: 0,
   height: 0,
   file_size: 0,
-  is_visible: 1
+  is_visible: 1,
+  latitude: null,
+  longitude: null
 })
 
 // 检查登录
@@ -136,9 +138,11 @@ const handleFileSelect = async (e) => {
     if (exifData.shot_date && !form.value.shot_date) {
       form.value.shot_date = exifData.shot_date
     }
-    
-    // 如果有 GPS 数据，可以存储或显示
+
+    // 自动填充 GPS 数据
     if (exifData.latitude && exifData.longitude) {
+      form.value.latitude = exifData.latitude
+      form.value.longitude = exifData.longitude
       console.log('GPS 坐标:', exifData.latitude, exifData.longitude)
     }
   } catch (err) {
@@ -230,7 +234,9 @@ const resetForm = () => {
     width: 0,
     height: 0,
     file_size: 0,
-    is_visible: 1
+    is_visible: 1,
+    latitude: null,
+    longitude: null
   }
 }
 
